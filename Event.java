@@ -1,24 +1,28 @@
-
 final class Event
 {
-   private final Action action;
-   private final long time;
-   private final Entity entity;
+   private Action action;
+   private long time;
+   private Active entity;
 
-   public Event(Action action, long time, Entity entity)
+   public Event(Action action, long time, Active entity)
    {
       this.action = action;
       this.time = time;
       this.entity = entity;
    }
 
-   public Action getAction() {
-      return action;
+   public Action getAction()
+   {
+      return this.action;
    }
-   public long getTime() {
-      return time;
+
+   public long getTime()
+   {
+      return this.time;
    }
-   public Entity getEntity(){
-      return entity;
+
+   public Active getEntity()
+   {
+      return this.entity;
    }
 }

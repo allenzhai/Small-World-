@@ -1,36 +1,43 @@
 import processing.core.PImage;
+
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
-public abstract class Movable extends AnimationEntity{
-
-    private PathingStrategy strategy = new AStarPathingStrategy();
-
-    public Movable(Point position, int actionPeriod, int animationPeriod, List<PImage> images){
-        super(position, images, animationPeriod, actionPeriod, true);
+public abstract class Movable extends Animate
+{
+    public Movable(Point position, List<PImage> images, int actionPeriod, int animationPeriod)
+    {
+        super(position, images, actionPeriod, animationPeriod);
     }
 
-    public boolean moveTo(WorldModel world, Entity target, EventScheduler scheduler) {
-        if (adjacent(this.getPosition(), target.getPosition()))
+    protected boolean moveTo(WorldModel world, Entity target, EventScheduler scheduler)
+    {
+        if (adjacent(getPosition(), target.getPosition()))
         {
-            world.removeEntity(target);
-            scheduler.unscheduleAllEvents(target);
-            return true;
+            if (this instanceof MinerNotFull)
+            {
+                ((MinerNotFull)this).setResourceCount(1);
+                world.removeEntity(target);
+                scheduler.unscheduleAllEvents( target);
+                return true;
+            }
+            else if (this instanceof OreBlob)
+            {
+                world.removeEntity(target);
+                scheduler.unscheduleAllEvents(target);
+                return true;
+            }
+            else
+            {
+                return true;
+            }
         }
         else
         {
-            List<Point> points = strategy.computePath(this.getPosition(), target.getPosition(),
-                                                        p -> world.withinBounds(p) && !world.isOccupied(p),
-                                                        (p1, p2) -> adjacent(p1, p2),
-                                                        PathingStrategy.DIAGONAL_CARDINAL_NEIGHBORS);
-//            Point nextPos = this.nextPosition(world, target.getPosition());
-            if (points.size() == 0){
-                return false;
-            }
-            Point nextPos = points.get(0);
+            Point nextPos = nextPosition(world, target.getPosition());
 
-            if (!this.getPosition().equals(nextPos))
+            if (!getPosition().equals(nextPos))
             {
                 Optional<Entity> occupant = world.getOccupant(nextPos);
                 if (occupant.isPresent())
@@ -44,32 +51,59 @@ public abstract class Movable extends AnimationEntity{
         }
     }
 
+    protected abstract Point nextPosition(WorldModel world, Point destPos);
 
-//    public Point nextPosition(WorldModel world, Point destPos) {
-//        int horiz = Integer.signum(destPos.x - this.getPosition().x);
-//        Point newPos = new Point(this.getPosition().x + horiz,
-//                this.getPosition().y);
-//
-//        Optional<Entity> occupant = world.getOccupant(newPos);
-//
-//        if (horiz == 0 ||
-//                (occupant.isPresent() && !(Objects.equals(occupant.getClass().getName(), "Ore"))))
-//        {
-//            int vert = Integer.signum(destPos.y - this.getPosition().y);
-//            newPos = new Point(this.getPosition().x, this.getPosition().y + vert);
-//            occupant = world.getOccupant(newPos);
-//
-//            if (vert == 0 ||
-//                    (occupant.isPresent() && !(Objects.equals(occupant.getClass().getName(), "Ore"))))
-//            {
-//                newPos = this.getPosition();
-//            }
-//        }
-//
-//        return newPos;
-//    }
+    public static Optional<Entity> findNearest(WorldModel world, Point pos, Class kind)
+    {
+        List<Entity> ofType = new LinkedList<>();
+        for (Entity entity : world.getEntities())
+        {
+            if (entity.getClass() == kind)
+            {
+                ofType.add(entity);
+            }
+        }
 
-    public static boolean adjacent(Point p1, Point p2) {
+        return nearestEntity(ofType, pos);
+    }
+
+    private static Optional<Entity> nearestEntity(List<Entity> entities,
+                                                 Point pos)
+    {
+        if (entities.isEmpty())
+        {
+            return Optional.empty();
+        }
+        else
+        {
+            Entity nearest = entities.get(0);
+            int nearestDistance = distanceSquared(nearest.getPosition(), pos);
+
+            for (Entity other : entities)
+            {
+                int otherDistance = distanceSquared(other.getPosition(), pos);
+
+                if (otherDistance < nearestDistance)
+                {
+                    nearest = other;
+                    nearestDistance = otherDistance;
+                }
+            }
+
+            return Optional.of(nearest);
+        }
+    }
+
+    private static int distanceSquared(Point p1, Point p2)
+    {
+        int deltaX = p1.x - p2.x;
+        int deltaY = p1.y - p2.y;
+
+        return deltaX * deltaX + deltaY * deltaY;
+    }
+
+    protected static boolean adjacent(Point p1, Point p2)
+    {
         return (p1.x == p2.x && Math.abs(p1.y - p2.y) == 1) ||
                 (p1.y == p2.y && Math.abs(p1.x - p2.x) == 1);
     }

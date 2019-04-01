@@ -5,11 +5,11 @@ import java.util.Optional;
 
 final class WorldView
 {
-   private final PApplet screen;
-   private final WorldModel world;
-   private final int tileWidth;
-   private final int tileHeight;
-   private final Viewport viewport;
+   private PApplet screen;
+   private WorldModel world;
+   private int tileWidth;
+   private int tileHeight;
+   private Viewport viewport;
 
    public WorldView(int numRows, int numCols, PApplet screen, WorldModel world,
       int tileWidth, int tileHeight)
@@ -21,78 +21,62 @@ final class WorldView
       this.viewport = new Viewport(numRows, numCols);
    }
 
-   public void drawViewport() {
-      this.drawBackground();
-      this.drawEntities();
+   public Viewport getViewport()
+   {
+      return this.viewport;
    }
-   private void drawBackground() {
-      for (int row = 0; row < this.viewport.getNumRows(); row++)
+
+
+   public void shiftView(int colDelta, int rowDelta)
+   {
+      int newCol = clamp(viewport.getCol() + colDelta, 0,
+              world.getNumCols() - viewport.getNumCols());
+      int newRow = clamp(viewport.getRow() + rowDelta, 0,
+              world.getNumRows() - viewport.getNumRows());
+
+      viewport.shift(newCol, newRow);
+   }
+
+   public void drawBackground()
+   {
+      for (int row = 0; row < viewport.getNumRows(); row++)
       {
-         for (int col = 0; col < this.viewport.getNumCols(); col++)
+         for (int col = 0; col < viewport.getNumCols(); col++)
          {
-            Point worldPoint = this.viewport.viewportToWorld(col, row);
-            Optional<PImage> image = this.getBackgroundImage(world, worldPoint);
+            Point worldPoint = viewport.viewportToWorld(col, row);
+            Optional<PImage> image = world.getBackgroundImage(worldPoint);
             if (image.isPresent())
             {
-               this.screen.image(image.get(), col * this.tileWidth,
-                       row * this.tileHeight);
+               screen.image(image.get(), col * tileWidth,
+                       row * tileHeight);
             }
          }
       }
    }
-   private void drawEntities() {
-      for (Entity entity : this.world.getEntities())
+
+   public void drawEntities()
+   {
+      for (Entity entity : world.getEntities())
       {
          Point pos = entity.getPosition();
 
-         if (this.viewport.contains(pos))
+         if (viewport.contains(pos))
          {
-            Point viewPoint = this.viewport.worldToViewport(pos.x, pos.y);
-            this.screen.image(getCurrentImage(entity),
-                    viewPoint.x * this.tileWidth, viewPoint.y * this.tileHeight);
+            Point viewPoint = viewport.worldToViewport(pos.x, pos.y);
+            screen.image(entity.getCurrentImage(),
+                    viewPoint.x * tileWidth, viewPoint.y * tileHeight);
          }
       }
    }
-   public void shiftView(int colDelta, int rowDelta) {
-      int newCol = clamp(this.viewport.getCol() + colDelta, 0,
-              this.world.getNumCols() - this.viewport.getNumCols());
-      int newRow = clamp(this.viewport.getRow() + rowDelta, 0,
-              this.world.getNumRows() - this.viewport.getNumRows());
 
-      this.viewport.shift(newCol, newRow);
-   }
-
-   public static PImage getCurrentImage(Object entity) {
-      if (entity instanceof Background)
-      {
-         return ((Background)entity).getImages()
-                 .get(((Background)entity).getImageIndex());
-      }
-      else if (entity instanceof Entity)
-      {
-         return ((Entity)entity).getImages().get(((Entity)entity).getImageIndex());
-      }
-      else
-      {
-         throw new UnsupportedOperationException(
-                 String.format("getCurrentImage not supported for %s",
-                         entity));
-      }
-   }
-   public  Optional<PImage> getBackgroundImage(WorldModel world, Point pos) {
-      if (world.withinBounds(pos))
-      {
-         return Optional.of(getCurrentImage(world.getBackgroundCell(pos)));
-      }
-      else
-      {
-         return Optional.empty();
-      }
+   public void drawViewport()
+   {
+      drawBackground();
+      drawEntities();
    }
 
    public static int clamp(int value, int low, int high)
    {
       return Math.min(high, Math.max(value, low));
    }
-
 }
